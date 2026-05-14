@@ -1,6 +1,7 @@
 """FastAPI service — /health, /chat, and chat UI at /."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import List
@@ -261,7 +262,18 @@ async def chat(req: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=400, detail="messages must not be empty")
 
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
-    result = await _agent.chat(messages)
+
+    # Hard 22s wall-clock budget — ensures we respond before Render's 30s proxy
+    # timeout even if Groq is slow or cancellation cleanup takes time.
+    try:
+        result = await asyncio.wait_for(_agent.chat(messages), timeout=22.0)
+    except asyncio.TimeoutError:
+        logger.warning("Request timed out at API boundary")
+        return ChatResponse(
+            reply="I'm having trouble processing your request. Please try again.",
+            recommendations=[],
+            end_of_conversation=False,
+        )
 
     recs = [
         Recommendation(name=r["name"], url=r["url"], test_type=r["test_type"])
