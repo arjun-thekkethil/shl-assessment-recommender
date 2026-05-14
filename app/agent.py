@@ -5,10 +5,11 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from groq import Groq
+from groq import Groq, RateLimitError
 
 logger = logging.getLogger("shl_agent")
 
@@ -205,12 +206,21 @@ SCHEMA (non-negotiable):
             })
 
         try:
-            completion = self._client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=groq_msgs,
-                temperature=0.1,
-                max_tokens=1024,
-            )
+            for attempt in range(2):
+                try:
+                    completion = self._client.chat.completions.create(
+                        model=GROQ_MODEL,
+                        messages=groq_msgs,
+                        temperature=0.1,
+                        max_tokens=1024,
+                    )
+                    break
+                except RateLimitError:
+                    if attempt == 0:
+                        logger.warning("Rate limit hit, retrying in 22s…")
+                        time.sleep(22)
+                    else:
+                        raise
             raw = completion.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
