@@ -1,93 +1,96 @@
-import os
+"""FastAPI service exposing /health and /chat endpoints for the SHL Assessment Recommender."""
+from __future__ import annotations
+
 import logging
+import os
 from typing import List
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .recommender import AssessmentRecommender
-from .config import CATALOG_PATH, MAX_K
+from .agent import SHLAgent
 
-# ----- logging -----
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("shl_recommender_api")
+logger = logging.getLogger("shl_api")
 
-# ----- FastAPI app -----
-app = FastAPI(title="SHL Assessment Recommendation API")
-
-# ----- CORS config via env var (comma-separated origins) -----
-# Example:
-#   ALLOWED_ORIGINS="https://your-site.netlify.app,http://localhost:5173"
-allowed = os.environ.get("ALLOWED_ORIGINS", "*")
-if allowed.strip() == "*" or allowed.strip() == "":
-    allow_origins = ["*"]
-else:
-    # split on commas and strip whitespace
-    allow_origins = [o.strip() for o in allowed.split(",") if o.strip()]
-
-logger.info("CORS allow_origins=%s", allow_origins)
+app = FastAPI(title="SHL Assessment Recommender")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ----- recommender (initialized at startup) -----
-recommender = None
+_agent: SHLAgent | None = None
 
 
-class RecommendRequest(BaseModel):
-    query: str
+# ---------------------------------------------------------------------------
+# Pydantic models
+# ---------------------------------------------------------------------------
+
+class Message(BaseModel):
+    role: str   # "user" or "assistant"
+    content: str
 
 
-class Assessment(BaseModel):
-    url: str
+class ChatRequest(BaseModel):
+    messages: List[Message]
+
+
+class Recommendation(BaseModel):
     name: str
-    adaptive_support: str
-    description: str
-    duration: int
-    remote_support: str
-    test_type: List[str]
+    url: str
+    test_type: str
 
 
-class RecommendResponse(BaseModel):
-    recommended_assessments: List[Assessment]
+class ChatResponse(BaseModel):
+    reply: str
+    recommendations: List[Recommendation] = []
+    end_of_conversation: bool = False
 
 
-# ----- startup handler -----
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+
 @app.on_event("startup")
-def startup():
-    global recommender
-    try:
-        logger.info("Initializing AssessmentRecommender (catalog=%s, max_k=%s)", CATALOG_PATH, MAX_K)
-        recommender = AssessmentRecommender(catalog_path=CATALOG_PATH, max_k=MAX_K)
-        logger.info("Recommender initialized: %d items", len(recommender.catalog_df))
-    except Exception as e:
-        logger.exception("Failed to initialize recommender: %s", e)
-        # Re-raise so the process fails to start (Render/Proc manager will show logs)
-        raise
+def startup() -> None:
+    global _agent
+    logger.info("Initializing SHLAgent …")
+    _agent = SHLAgent()
+    logger.info("SHLAgent ready")
 
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "ok"}
 
 
-@app.post("/recommend", response_model=RecommendResponse)
-def recommend(req: RecommendRequest, request: Request):
-    if not req.query or not req.query.strip():
-        raise HTTPException(status_code=400, detail="query must be a non-empty string")
+@app.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest) -> ChatResponse:
+    if not req.messages:
+        raise HTTPException(status_code=400, detail="messages must not be empty")
 
-    try:
-        # default k=10 (still limited by recommender.max_k internally)
-        recs = recommender.recommend(req.query, k=10)
-        assessments = [Assessment(**r) for r in recs]
-        return RecommendResponse(recommended_assessments=assessments)
-    except Exception as e:
-        logger.exception("Error while generating recommendations for query=%r: %s", req.query, e)
-        # Surface a clear error to the client
-        raise HTTPException(status_code=500, detail="Internal error generating recommendations")
+    messages = [{"role": m.role, "content": m.content} for m in req.messages]
+    result = _agent.chat(messages)
+
+    recs = [
+        Recommendation(
+            name=r["name"],
+            url=r["url"],
+            test_type=r["test_type"],
+        )
+        for r in result.get("recommendations", [])
+    ]
+
+    return ChatResponse(
+        reply=result["reply"],
+        recommendations=recs,
+        end_of_conversation=result.get("end_of_conversation", False),
+    )

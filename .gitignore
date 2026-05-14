@@ -14,3 +14,8 @@ debug/
 
 # Accidental file
 =
+
+# Environment variables
+.env
+.env.local
+*.env
