@@ -8,7 +8,6 @@ from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -100,11 +99,6 @@ def chat(req: ChatRequest) -> ChatResponse:
 # ---------------------------------------------------------------------------
 # Serve frontend — mount AFTER API routes so /health and /chat take priority
 # ---------------------------------------------------------------------------
-
-@app.get("/")
-def serve_index():
-    return FileResponse(_FRONTEND / "index.html")
-
 
 if _FRONTEND.exists():
     app.mount("/", StaticFiles(directory=str(_FRONTEND), html=True), name="frontend")
