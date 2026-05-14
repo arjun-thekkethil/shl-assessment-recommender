@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY data/catalog.json ./data/catalog.json
+COPY frontend ./frontend
 
 EXPOSE 8000
 
