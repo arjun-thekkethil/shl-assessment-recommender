@@ -14,7 +14,7 @@ from groq import Groq, RateLimitError
 logger = logging.getLogger("shl_agent")
 
 CATALOG_PATH = Path(__file__).parent.parent / "data" / "catalog.json"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "llama-3.1-8b-instant"
 MAX_TURNS = 8
 SKILL_TOP_K = 20  # max K-type tests added via keyword match
 
