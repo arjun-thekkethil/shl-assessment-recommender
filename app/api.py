@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .agent import SHLAgent
@@ -22,6 +25,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_FRONTEND = Path(__file__).parent.parent / "frontend"
 
 _agent: SHLAgent | None = None
 
@@ -61,6 +66,9 @@ def startup() -> None:
     logger.info("Initializing SHLAgent …")
     _agent = SHLAgent()
     logger.info("SHLAgent ready")
+    # Serve frontend static assets (css, js, images if any)
+    if _FRONTEND.exists():
+        app.mount("/static", StaticFiles(directory=str(_FRONTEND)), name="static")
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +78,11 @@ def startup() -> None:
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/")
+def serve_ui():
+    return FileResponse(_FRONTEND / "index.html")
 
 
 @app.post("/chat", response_model=ChatResponse)

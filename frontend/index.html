@@ -1,433 +1,434 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>SHL Assessment Recommendation Engine</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      :root {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
-        color-scheme: light dark;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SHL Assessment Recommender</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      body {
-        margin: 0;
-        background: radial-gradient(circle at top left, #1f2933, #020617);
-        color: #e5e7eb;
-        min-height: 100vh;
-        display: flex;
-        align-items: stretch;
-        justify-content: center;
-      }
+    :root {
+      --bg:        #0a0f1e;
+      --surface:   #111827;
+      --surface2:  #1a2235;
+      --border:    rgba(255,255,255,0.08);
+      --accent:    #6366f1;
+      --accent2:   #818cf8;
+      --green:     #22c55e;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --user-bg:   #1e3a5f;
+      --bot-bg:    #1a2235;
+      --radius:    14px;
+    }
 
-      .app-shell {
-        max-width: 1100px;
-        width: 100%;
-        margin: 32px;
-        background: rgba(15, 23, 42, 0.96);
-        border-radius: 18px;
-        box-shadow: 0 22px 45px rgba(0, 0, 0, 0.45);
-        display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
-        gap: 0;
-        overflow: hidden;
-      }
+    html, body { height: 100%; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
 
-      @media (max-width: 900px) {
-        .app-shell {
-          display: block;
-        }
-      }
+    /* ── Layout ── */
+    .shell {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
 
-      .left {
-        padding: 28px 28px 24px;
-        border-right: 1px solid rgba(148, 163, 184, 0.2);
-      }
+    /* ── Top bar ── */
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .topbar-logo { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
+    .topbar-logo span { color: var(--accent2); }
+    .topbar-badge {
+      font-size: .65rem; text-transform: uppercase; letter-spacing: .1em;
+      border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted);
+    }
+    .topbar-spacer { flex: 1; }
+    .btn-new {
+      font-size: .8rem; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); cursor: pointer;
+    }
+    .btn-new:hover { background: var(--surface2); }
 
-      @media (max-width: 900px) {
-        .left {
-          border-right: none;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-        }
-      }
+    /* ── Chat column ── */
+    .chat-col {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
 
-      .header-title {
-        font-size: 1.35rem;
-        font-weight: 650;
-        letter-spacing: 0.02em;
-        margin-bottom: 4px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
 
-      .header-pill {
-        font-size: 0.7rem;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.5);
-        padding: 3px 9px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #9ca3af;
-      }
+    /* welcome */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-align: center;
+      color: var(--muted);
+      padding: 40px;
+    }
+    .welcome-icon { font-size: 2.4rem; }
+    .welcome h2 { font-size: 1.1rem; color: var(--text); }
+    .welcome p  { font-size: .85rem; max-width: 340px; line-height: 1.5; }
+    .welcome-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+    .chip {
+      font-size: .78rem; padding: 6px 14px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--text); cursor: pointer;
+      background: var(--surface2);
+    }
+    .chip:hover { border-color: var(--accent2); color: var(--accent2); }
 
-      .header-sub {
-        font-size: 0.88rem;
-        color: #9ca3af;
-        margin-bottom: 20px;
-      }
+    /* bubbles */
+    .msg { display: flex; gap: 10px; max-width: 85%; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.assistant { align-self: flex-start; }
 
-      .form-group {
-        margin-bottom: 18px;
-      }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: .85rem;
+    }
+    .msg.user .avatar     { background: var(--accent); }
+    .msg.assistant .avatar { background: var(--surface2); border: 1px solid var(--border); }
 
-      .label-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 6px;
-      }
+    .bubble {
+      border-radius: var(--radius); padding: 10px 14px;
+      font-size: .88rem; line-height: 1.55;
+    }
+    .msg.user .bubble     { background: var(--user-bg); border-bottom-right-radius: 4px; }
+    .msg.assistant .bubble { background: var(--bot-bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
 
-      label {
-        font-size: 0.82rem;
-        font-weight: 550;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #9ca3af;
-      }
+    /* typing indicator */
+    .typing { display: flex; gap: 5px; padding: 4px 2px; }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--muted);
+      animation: bounce .9s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .15s; }
+    .typing span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%           { transform: translateY(-6px); }
+    }
 
-      .label-hint {
-        font-size: 0.78rem;
-        color: #6b7280;
-      }
+    /* input bar */
+    .input-bar {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--surface);
+    }
+    .input-bar textarea {
+      flex: 1; resize: none; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); font: inherit; font-size: .9rem;
+      padding: 10px 14px; max-height: 140px; outline: none; line-height: 1.5;
+    }
+    .input-bar textarea:focus { border-color: var(--accent); }
+    .input-bar textarea::placeholder { color: var(--muted); }
+    .send-btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: var(--accent); color: #fff; cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .send-btn:hover:not(:disabled) { background: var(--accent2); }
+    .send-btn:disabled { opacity: .45; cursor: default; }
 
-      textarea {
-        width: 100%;
-        min-height: 130px;
-        resize: vertical;
-        border-radius: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.5);
-        background: rgba(15, 23, 42, 0.9);
-        color: #e5e7eb;
-        padding: 10px 12px;
-        font: inherit;
-        outline: none;
-        box-sizing: border-box;
-      }
+    /* ── Recommendations panel ── */
+    .rec-col {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .rec-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .rec-count {
+      background: var(--surface2); border-radius: 999px; padding: 2px 9px;
+      font-size: .72rem; color: var(--accent2);
+    }
+    .rec-list {
+      flex: 1; overflow-y: auto; padding: 12px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
 
-      textarea:focus {
-        border-color: #38bdf8;
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4);
-      }
+    .rec-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 10px; color: var(--muted); text-align: center; padding: 32px;
+    }
+    .rec-empty-icon { font-size: 2rem; }
+    .rec-empty p { font-size: .82rem; }
 
-      .small-row {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        margin-bottom: 14px;
-      }
+    .rec-card {
+      border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface2); padding: 10px 12px;
+      transition: border-color .15s;
+    }
+    .rec-card:hover { border-color: var(--accent); }
 
-      .small-row > div {
-        flex: 1;
-      }
+    .rec-name {
+      font-size: .85rem; font-weight: 600; margin-bottom: 6px; line-height: 1.3;
+    }
+    .rec-name a { color: var(--text); text-decoration: none; }
+    .rec-name a:hover { color: var(--accent2); }
 
-      input[type="number"] {
-        width: 100%;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.5);
-        background: rgba(15, 23, 42, 0.9);
-        color: #e5e7eb;
-        padding: 6px 10px;
-        font: inherit;
-        outline: none;
-        box-sizing: border-box;
-      }
+    .rec-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge {
+      font-size: .68rem; padding: 2px 8px; border-radius: 999px;
+      border: 1px solid var(--border); color: var(--muted);
+    }
+    .badge-type { border-color: var(--accent); color: var(--accent2); }
 
-      input[type="number"]:focus {
-        border-color: #38bdf8;
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4);
-      }
+    /* type legend */
+    .legend {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      font-size: .68rem; color: var(--muted); line-height: 1.8;
+    }
+    .legend strong { color: var(--text); }
 
-      .toggles-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 14px;
-      }
+    /* scrollbars */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
 
-      .chip {
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        font-size: 0.75rem;
-        color: #9ca3af;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
+    @media (max-width: 768px) {
+      .shell { grid-template-columns: 1fr; grid-template-rows: 56px 1fr auto; }
+      .rec-col { max-height: 260px; border-right: none; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
 
-      .chip input {
-        margin: 0;
-      }
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-logo">SHL <span>Assess</span></div>
+    <span class="topbar-badge">Recommender</span>
+    <div class="topbar-spacer"></div>
+    <button class="btn-new" id="btn-new">+ New chat</button>
+  </header>
 
-      .actions-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-top: 8px;
-      }
-
-      .btn-primary {
-        border: none;
-        border-radius: 999px;
-        padding: 8px 18px;
-        font-size: 0.9rem;
-        font-weight: 550;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: linear-gradient(135deg, #22c55e, #16a34a);
-        color: #ecfdf5;
-        box-shadow: 0 12px 24px rgba(22, 163, 74, 0.35);
-      }
-
-      .btn-primary:hover {
-        filter: brightness(1.05);
-        transform: translateY(-1px);
-      }
-
-      .btn-primary:disabled {
-        opacity: 0.7;
-        cursor: default;
-        transform: none;
-        box-shadow: none;
-      }
-
-      .status-text {
-        font-size: 0.8rem;
-        color: #9ca3af;
-      }
-
-      .status-text strong {
-        color: #e5e7eb;
-      }
-
-      .right {
-        padding: 22px 24px 20px;
-        background: radial-gradient(circle at top right, #0f172a, #020617);
-      }
-
-      .results-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        margin-bottom: 10px;
-      }
-
-      .results-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: #a5b4fc;
-      }
-
-      .results-meta {
-        font-size: 0.8rem;
-        color: #6b7280;
-      }
-
-      .results-box {
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        background: rgba(15, 23, 42, 0.9);
-        padding: 8px;
-        max-height: 430px;
-        overflow: auto;
-      }
-
-      .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #6b7280;
-        font-size: 0.9rem;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.8rem;
-      }
-
-      thead {
-        position: sticky;
-        top: 0;
-        background: rgba(15, 23, 42, 0.98);
-        z-index: 1;
-      }
-
-      th,
-      td {
-        padding: 8px 6px;
-        text-align: left;
-        border-bottom: 1px solid rgba(31, 41, 55, 0.8);
-      }
-
-      th {
-        font-weight: 550;
-        color: #9ca3af;
-        text-transform: uppercase;
-        font-size: 0.7rem;
-        letter-spacing: 0.06em;
-      }
-
-      tbody tr:hover {
-        background: rgba(30, 64, 175, 0.5);
-      }
-
-      .pill {
-        display: inline-block;
-        border-radius: 999px;
-        padding: 2px 8px;
-        font-size: 0.7rem;
-        border: 1px solid rgba(148, 163, 184, 0.5);
-        color: #9ca3af;
-      }
-
-      .pill-yes {
-        border-color: #22c55e;
-        color: #bbf7d0;
-      }
-
-      .pill-no {
-        border-color: #f97316;
-        color: #fed7aa;
-      }
-
-      .pill-unknown {
-        border-style: dashed;
-      }
-
-      .url-link {
-        color: #38bdf8;
-        text-decoration: none;
-      }
-
-      .url-link:hover {
-        text-decoration: underline;
-      }
-
-      .duration-badge {
-        font-size: 0.75rem;
-        color: #e5e7eb;
-      }
-
-      .tag-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-      }
-
-      .tag {
-        border-radius: 999px;
-        padding: 1px 7px;
-        border: 1px solid rgba(148, 163, 184, 0.5);
-        font-size: 0.68rem;
-        color: #9ca3af;
-      }
-
-      .error-msg {
-        margin-top: 8px;
-        font-size: 0.8rem;
-        color: #fecaca;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="app-shell">
-      <section class="left">
-        <div class="header-title">
-          SHL Assessment Recommender
-          <span class="header-pill">Prototype</span>
+  <!-- Chat -->
+  <main class="chat-col">
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">🎯</div>
+        <h2>SHL Assessment Recommender</h2>
+        <p>Describe a role or hiring need and I'll suggest the most relevant SHL assessments from the catalog.</p>
+        <div class="welcome-chips">
+          <span class="chip" data-q="I need to hire a Java backend developer">Java developer</span>
+          <span class="chip" data-q="Sales representative with strong communication skills">Sales rep</span>
+          <span class="chip" data-q="Entry-level data analyst for a financial firm">Data analyst</span>
+          <span class="chip" data-q="Senior software engineer, 8+ years, leadership skills">Senior engineer</span>
         </div>
-        <p class="header-sub">
-          Paste a hiring need or job description, and this UI will call
-          <code>/recommend</code> on your backend and surface up to 10 SHL
-          assessments from your catalog.
-        </p>
-
-        <form id="query-form">
-          <div class="form-group">
-            <div class="label-row">
-              <label for="query-input">Hiring requirement / job description</label>
-              <span class="label-hint">Free text &mdash; anything recruiters would type</span>
-            </div>
-            <textarea
-              id="query-input"
-              placeholder="e.g. Looking to hire mid-level Java developers with strong communication skills and SQL exposure..."
-            ></textarea>
-          </div>
-
-          <div class="small-row">
-            <div>
-              <div class="label-row">
-                <label for="k-input">Max recommendations</label>
-                <span class="label-hint">1&ndash;10 (default 10)</span>
-              </div>
-              <input
-                id="k-input"
-                type="number"
-                min="1"
-                max="10"
-                placeholder="10"
-              />
-            </div>
-          </div>
-
-          <div class="toggles-row">
-            <span class="chip">
-              <input type="checkbox" id="remote-filter" />
-              <span>Prefer remote-support assessments</span>
-            </span>
-            <span class="chip">
-              <input type="checkbox" id="adaptive-filter" />
-              <span>Prefer adaptive assessments</span>
-            </span>
-          </div>
-
-          <div class="actions-row">
-            <button type="submit" id="submit-btn" class="btn-primary">
-              <span id="btn-icon">⚙️</span>
-              <span id="btn-text">Get recommendations</span>
-            </button>
-            <div class="status-text" id="status-text">
-              Backend: <strong>http://localhost:8000/recommend</strong>
-            </div>
-          </div>
-
-          <div id="error-msg" class="error-msg" style="display: none"></div>
-        </form>
-      </section>
-
-      <section class="right">
-        <div class="results-header">
-          <div class="results-title">Recommended assessments</div>
-          <div class="results-meta" id="results-meta">No query yet.</div>
-        </div>
-
-        <div class="results-box" id="results-box">
-          <div class="empty-state">
-            Submit a hiring query on the left to see SHL product recommendations
-            here.
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
 
-    <script type="module" src="./main.js"></script>
-  </body>
+    <div class="input-bar">
+      <textarea id="input" rows="1" placeholder="Describe a role or hiring need…"></textarea>
+      <button class="send-btn" id="send-btn" disabled title="Send">&#9658;</button>
+    </div>
+  </main>
+
+  <!-- Recommendations -->
+  <aside class="rec-col">
+    <div class="rec-header">
+      Recommendations
+      <span class="rec-count" id="rec-count">0</span>
+    </div>
+    <div class="rec-list" id="rec-list">
+      <div class="rec-empty">
+        <div class="rec-empty-icon">📋</div>
+        <p>Recommended assessments will appear here after you describe a role.</p>
+      </div>
+    </div>
+    <div class="legend">
+      <strong>Types:</strong> A=Ability &nbsp; B=Biodata &nbsp; C=Competency<br>
+      D=Development &nbsp; E=Engagement &nbsp; K=Knowledge<br>
+      P=Personality &nbsp; S=Situational
+    </div>
+  </aside>
+
+</div>
+
+<script>
+const API = "https://shl-assessment-recommender-1-6c1d.onrender.com";
+let history = [];   // [{role, content}]
+let busy = false;
+
+const messagesEl = document.getElementById("messages");
+const inputEl    = document.getElementById("input");
+const sendBtn    = document.getElementById("send-btn");
+const recList    = document.getElementById("rec-list");
+const recCount   = document.getElementById("rec-count");
+const welcome    = document.getElementById("welcome");
+
+// ── auto-resize textarea ──
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
+  sendBtn.disabled = busy || !inputEl.value.trim();
+});
+
+inputEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+sendBtn.addEventListener("click", sendMessage);
+
+document.getElementById("btn-new").addEventListener("click", resetChat);
+
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    inputEl.value = chip.dataset.q;
+    inputEl.dispatchEvent(new Event("input"));
+    sendMessage();
+  });
+});
+
+// ── helpers ──
+function scrollToBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addBubble(role, text) {
+  welcome && welcome.remove();
+  const msg = document.createElement("div");
+  msg.className = `msg ${role}`;
+  msg.innerHTML = `
+    <div class="avatar">${role === "user" ? "👤" : "🤖"}</div>
+    <div class="bubble">${escHtml(text)}</div>`;
+  messagesEl.appendChild(msg);
+  scrollToBottom();
+  return msg;
+}
+
+function addTypingIndicator() {
+  welcome && welcome.remove();
+  const msg = document.createElement("div");
+  msg.className = "msg assistant";
+  msg.id = "typing";
+  msg.innerHTML = `<div class="avatar">🤖</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  messagesEl.appendChild(msg);
+  scrollToBottom();
+  return msg;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/\n/g,"<br>");
+}
+
+function typeLabel(code) {
+  const map = {A:"Ability",B:"Biodata",C:"Competency",D:"Development",
+                E:"Engagement",K:"Knowledge",P:"Personality",S:"Situational"};
+  return map[code] || code;
+}
+
+function renderRecs(recs) {
+  recCount.textContent = recs.length;
+  if (!recs.length) return;
+  recList.innerHTML = recs.map((r, i) => `
+    <div class="rec-card">
+      <div class="rec-name">
+        <span style="color:var(--muted);font-size:.75rem;">${i+1}.</span>
+        <a href="${r.url}" target="_blank" rel="noopener">${escHtml(r.name)}</a>
+      </div>
+      <div class="rec-meta">
+        <span class="badge badge-type">${r.test_type} · ${typeLabel(r.test_type)}</span>
+      </div>
+    </div>`).join("");
+}
+
+// ── send ──
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || busy) return;
+  busy = true;
+  sendBtn.disabled = true;
+
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+
+  addBubble("user", text);
+  history.push({ role: "user", content: text });
+
+  const typing = addTypingIndicator();
+
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: history }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    typing.remove();
+    addBubble("assistant", data.reply || "…");
+    history.push({ role: "assistant", content: data.reply || "" });
+
+    if (data.recommendations?.length) renderRecs(data.recommendations);
+  } catch (err) {
+    typing.remove();
+    addBubble("assistant", "Sorry, I couldn't reach the server. Please try again.");
+    console.error(err);
+  } finally {
+    busy = false;
+    sendBtn.disabled = !inputEl.value.trim();
+  }
+}
+
+function resetChat() {
+  history = [];
+  messagesEl.innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">🎯</div>
+      <h2>SHL Assessment Recommender</h2>
+      <p>Describe a role or hiring need and I'll suggest the most relevant SHL assessments from the catalog.</p>
+      <div class="welcome-chips">
+        <span class="chip" data-q="I need to hire a Java backend developer">Java developer</span>
+        <span class="chip" data-q="Sales representative with strong communication skills">Sales rep</span>
+        <span class="chip" data-q="Entry-level data analyst for a financial firm">Data analyst</span>
+        <span class="chip" data-q="Senior software engineer, 8+ years, leadership skills">Senior engineer</span>
+      </div>
+    </div>`;
+  document.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      inputEl.value = chip.dataset.q;
+      inputEl.dispatchEvent(new Event("input"));
+      sendMessage();
+    });
+  });
+  recList.innerHTML = `<div class="rec-empty"><div class="rec-empty-icon">📋</div><p>Recommendations appear here.</p></div>`;
+  recCount.textContent = "0";
+}
+</script>
+</body>
 </html>
