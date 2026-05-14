@@ -1,7 +1,7 @@
 """Groq-powered conversational SHL assessment recommender agent."""
 from __future__ import annotations
 
-import concurrent.futures
+import asyncio
 import json
 import logging
 import os
@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from groq import Groq, RateLimitError
+from groq import AsyncGroq, RateLimitError
 
 logger = logging.getLogger("shl_agent")
 
@@ -30,8 +30,7 @@ class SHLAgent:
         if not api_key:
             raise RuntimeError("GROQ_API_KEY environment variable is required")
 
-        self._client = Groq(api_key=api_key)
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+        self._client = AsyncGroq(api_key=api_key)
 
         with open(CATALOG_PATH) as fh:
             self.catalog: List[Dict] = json.load(fh)
@@ -286,7 +285,7 @@ SCHEMA (non-negotiable):
     # Main chat method
     # ------------------------------------------------------------------
 
-    def chat(self, messages: List[Dict]) -> Dict:
+    async def chat(self, messages: List[Dict]) -> Dict:
         """
         Process a stateless conversation history and return the agent reply.
 
@@ -311,24 +310,21 @@ SCHEMA (non-negotiable):
                 "content": m["content"],
             })
 
-        # Use a thread + future so we get a true wall-clock timeout.
-        # Groq may send HTTP keep-alive during server-side queuing which
-        # prevents the SDK's per-read timeout from firing; future.result()
-        # enforces a hard wall limit regardless.
-        def _call_groq():
-            return self._client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=groq_msgs,
-                temperature=0.1,
-                max_tokens=600,
-                timeout=None,
-            )
-
-        future = self._executor.submit(_call_groq)
+        # asyncio.wait_for gives a true wall-clock cancellation — the async
+        # httpx client underlying AsyncGroq honours coroutine cancellation,
+        # so this reliably fires within the timeout regardless of keep-alive.
         try:
-            completion = future.result(timeout=24.0)
+            completion = await asyncio.wait_for(
+                self._client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=groq_msgs,
+                    temperature=0.1,
+                    max_tokens=600,
+                ),
+                timeout=24.0,
+            )
             raw = completion.choices[0].message.content.strip()
-        except concurrent.futures.TimeoutError:
+        except asyncio.TimeoutError:
             logger.warning("Groq call exceeded 24s wall limit")
             return self._error_response()
         except Exception as exc:

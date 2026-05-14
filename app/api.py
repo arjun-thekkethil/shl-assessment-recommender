@@ -256,12 +256,12 @@ def serve_ui(request: Request):
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+async def chat(req: ChatRequest) -> ChatResponse:
     if not req.messages:
         raise HTTPException(status_code=400, detail="messages must not be empty")
 
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
-    result = _agent.chat(messages)
+    result = await _agent.chat(messages)
 
     recs = [
         Recommendation(name=r["name"], url=r["url"], test_type=r["test_type"])
