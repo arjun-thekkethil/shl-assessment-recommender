@@ -66,7 +66,28 @@ class SHLAgent:
 
     def _keyword_match_k(self, query: str, k: int = SKILL_TOP_K) -> List[Dict]:
         """Return K-type assessments whose names overlap with query keywords."""
-        words = {w for w in re.findall(r"[a-z0-9#+.]+", query.lower()) if len(w) > 2}
+        # Role-based expansions: map common role keywords to relevant tech keywords
+        # so queries like 'AI engineer' also surface Python/Data Science tests.
+        EXPANSIONS: Dict[str, List[str]] = {
+            "ai":          ["python", "data", "statistics", "machine"],
+            "ml":          ["python", "data", "statistics", "machine"],
+            "machine":     ["python", "data", "statistics"],
+            "learning":    ["python", "data", "statistics"],
+            "data":        ["python", "sql", "statistics"],
+            "analyst":     ["sql", "excel", "data"],
+            "scientist":   ["python", "sql", "statistics", "data"],
+            "backend":     ["java", "python", "sql", "api"],
+            "frontend":    ["javascript", "html", "css", "react"],
+            "fullstack":   ["javascript", "java", "python", "html"],
+            "devops":      ["linux", "cloud", "docker", "aws"],
+        }
+        raw_words = set(re.findall(r"[a-z0-9#+.]+", query.lower()))
+        words = {w for w in raw_words if len(w) >= 2}
+        # Expand with tech synonyms for known role keywords
+        for role_kw, expansions in EXPANSIONS.items():
+            if role_kw in words:
+                words.update(expansions)
+
         scored: List[tuple] = []
         for item in self._k_items:
             name_lower = item["name"].lower()
@@ -143,6 +164,7 @@ RULES:
    - Leadership/exec (CEO, COO, VP, director, manager): P-type (OPQ32r, HiPo, Enterprise Leadership), A-type (Verify), C-type.
    - Sales/service/customer success/customer success manager/account manager: P-type (OPQ MQ Sales, Sales Transformation), S-type (Sales & Service Phone Solution, Retail Sales and Service Simulation), B-type (Entry Level Sales Solution).
    - Technical (developer, engineer, analyst, DBA): K-type skill tests for the specific stack PLUS at least 1-2 Verify cognitive tests (e.g. "Verify - Deductive Reasoning", "Verify G+ - Ability Test Report").
+   - AI/ML engineer: Python (New), Data Science (New), Automata Data Science or Automata Data Science Pro, AI Skills, Verify cognitive tests. Do NOT include Automata Front End or Automata Selenium (those are web/testing tools, not AI).
    - Any senior/mid role: include OPQ32r or one OPQ variant unless user excludes it.
    - Do NOT pick multiple variants of the same assessment family (e.g. pick ONE OPQ Team Impact report, not all three; pick ONE Verify test of each type).
 3. REFINE: Update the shortlist surgically when user changes constraints.
