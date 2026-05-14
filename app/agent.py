@@ -171,6 +171,16 @@ class SHLAgent:
             "frontend":    ["javascript", "html", "css", "react"],
             "fullstack":   ["javascript", "java", "python", "html"],
             "devops":      ["linux", "cloud", "docker", "aws"],
+            "analyst":     ["sql", "excel", "data", "statistics"],
+            "finance":     ["accounting", "statistics"],
+            "financial":   ["accounting", "statistics"],
+            "healthcare":  ["medical", "hipaa", "terminology"],
+            "clinical":    ["medical", "hipaa", "terminology"],
+            "admin":       ["excel", "word", "microsoft"],
+            "infrastructure": ["linux", "networking"],
+            "systems":     ["linux", "networking"],
+            "rust":        ["linux", "networking", "coding"],
+            "embedded":    ["linux", "networking", "coding"],
         }
         raw_words = set(re.findall(r"[a-z0-9#+.]+", query.lower()))
         words = {w for w in raw_words if len(w) >= 2}
@@ -205,6 +215,9 @@ class SHLAgent:
             "debugging":    ["fix"],
             "chat":         ["multichat"],
             "multichannel": ["multichat"],
+            "cognitive":    ["verify", "interactive"],
+            "ability":      ["verify", "interactive"],
+            "reasoning":    ["verify", "interactive", "numerical"],
         }
         raw_words = set(re.findall(r"[a-z0-9#+.]+", query.lower()))
         words = {w for w in raw_words if len(w) >= 2}
