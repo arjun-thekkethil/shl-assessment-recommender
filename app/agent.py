@@ -219,12 +219,13 @@ SCHEMA (non-negotiable):
                         messages=groq_msgs,
                         temperature=0.1,
                         max_tokens=1024,
+                        timeout=20.0,
                     )
                     break
                 except RateLimitError:
                     if attempt == 0:
-                        logger.warning("Rate limit hit, retrying in 22s…")
-                        time.sleep(22)
+                        logger.warning("Rate limit hit, retrying in 8s…")
+                        time.sleep(8)
                     else:
                         raise
             raw = completion.choices[0].message.content.strip()
