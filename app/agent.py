@@ -106,6 +106,18 @@ class SHLAgent:
         the right skill assessments.
         """
         candidates = list(self._non_k)
+
+        # Automata Front End and Selenium are web/test-automation tools — exclude
+        # them unless the query explicitly mentions frontend or Selenium work.
+        _FRONTEND_SLUGS = {"automata-front-end", "automata-selenium"}
+        _FRONTEND_TRIGGERS = {"frontend", "selenium", "html", "css", "react", "angular", "vue", "web"}
+        query_words = set(re.findall(r"[a-z]+", query.lower()))
+        if not query_words.intersection(_FRONTEND_TRIGGERS):
+            candidates = [
+                c for c in candidates
+                if c["url"].rstrip("/").split("/")[-1] not in _FRONTEND_SLUGS
+            ]
+
         seen = {item["url"] for item in candidates}
         for item in self._keyword_match_k(query):
             if item["url"] not in seen:
@@ -164,7 +176,7 @@ RULES:
    - Leadership/exec (CEO, COO, VP, director, manager): P-type (OPQ32r, HiPo, Enterprise Leadership), A-type (Verify), C-type.
    - Sales/service/customer success/customer success manager/account manager: P-type (OPQ MQ Sales, Sales Transformation), S-type (Sales & Service Phone Solution, Retail Sales and Service Simulation), B-type (Entry Level Sales Solution).
    - Technical (developer, engineer, analyst, DBA): K-type skill tests for the specific stack PLUS at least 1-2 Verify cognitive tests (e.g. "Verify - Deductive Reasoning", "Verify G+ - Ability Test Report").
-   - AI/ML engineer: Python (New), Data Science (New), Automata Data Science or Automata Data Science Pro, AI Skills, Verify cognitive tests. Do NOT include Automata Front End or Automata Selenium (those are web/testing tools, not AI).
+   - AI/ML engineer: Python (New), Data Science (New), Automata Data Science or Automata Data Science Pro (pick ONE), AI Skills, Verify cognitive tests.
    - Any senior/mid role: include OPQ32r or one OPQ variant unless user excludes it.
    - Do NOT pick multiple variants of the same assessment family (e.g. pick ONE OPQ Team Impact report, not all three; pick ONE Verify test of each type).
 3. REFINE: Update the shortlist surgically when user changes constraints.
