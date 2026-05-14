@@ -140,10 +140,11 @@ TYPE CODES: A=Ability  B=Biodata  C=Competency  D=Development  E=Engagement  K=K
 RULES:
 1. CLARIFY: Ask ONE question only when query has zero role/skill/context. Any job title or domain = enough to recommend.
 2. RECOMMEND 1-10 assessments once you have context:
-   - Leadership/exec (CEO, COO, VP, director, manager): P-type (OPQ, HiPo), A-type (Verify), C-type, leadership reports.
-   - Sales/service: P-type (OPQ MQ Sales, Sales Transformation), S-type (Sales & Service Phone), B-type.
-   - Technical (developer, analyst, DBA): K-type skill tests for the specific tech stack PLUS at least 1-2 A-type Verify cognitive tests (e.g. "Verify - Deductive Reasoning", "Verify G+ - Ability Test Report"). Always mix skill + cognitive.
-   - Any senior role: include OPQ32r or an OPQ variant unless user excludes it.
+   - Leadership/exec (CEO, COO, VP, director, manager): P-type (OPQ32r, HiPo, Enterprise Leadership), A-type (Verify), C-type.
+   - Sales/service/customer success/customer success manager/account manager: P-type (OPQ MQ Sales, Sales Transformation), S-type (Sales & Service Phone Solution, Retail Sales and Service Simulation), B-type (Entry Level Sales Solution).
+   - Technical (developer, engineer, analyst, DBA): K-type skill tests for the specific stack PLUS at least 1-2 Verify cognitive tests (e.g. "Verify - Deductive Reasoning", "Verify G+ - Ability Test Report").
+   - Any senior/mid role: include OPQ32r or one OPQ variant unless user excludes it.
+   - Do NOT pick multiple variants of the same assessment family (e.g. pick ONE OPQ Team Impact report, not all three; pick ONE Verify test of each type).
 3. REFINE: Update the shortlist surgically when user changes constraints.
 4. COMPARE: When comparing assessments, look up each one in the catalog above and read its type code from column 3. State the exact type letter and its meaning (e.g. "OPQ32r is type P = Personality; HiPo Assessment Report 2.0 is type C = Competency"). Never describe types from memory — always read them from the catalog.
 5. REFUSE — ANY of these trigger an immediate refusal with recommendations=[]:
@@ -261,8 +262,19 @@ SCHEMA (non-negotiable):
             if len(clean_recs) == 10:
                 break
 
+        reply_text = str(parsed.get("reply", "")).strip()
+        # If URL validation dropped items, correct the count in the reply text
+        # so "Here are 7 assessments" doesn't lie when we only return 6.
+        if clean_recs:
+            reply_text = re.sub(
+                r'\b\d+\b(?=\s+assessments?\b)',
+                str(len(clean_recs)),
+                reply_text,
+                flags=re.IGNORECASE,
+            )
+
         return {
-            "reply": str(parsed.get("reply", "")).strip(),
+            "reply": reply_text,
             "recommendations": clean_recs,
             "end_of_conversation": bool(parsed.get("end_of_conversation", False)),
         }
