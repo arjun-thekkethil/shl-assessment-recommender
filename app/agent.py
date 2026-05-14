@@ -45,10 +45,100 @@ class SHLAgent:
             for item in self.catalog
         }
 
-        # Split catalog into non-K (always included) and K-type (retrieved by keyword)
-        self._non_k: List[Dict] = [
+        # Core non-K slugs: one representative per assessment family to keep
+        # prompt under ~2,000 tokens (Groq free tier: 6,000 TPM).
+        _CORE_SLUGS: set = {
+            # P — Personality / motivational
+            "ai-skills",
+            "dependability-and-safety-instrument-dsi",
+            "digital-readiness-development-report",
+            "enterprise-leadership-report-2-0",
+            "entry-level-customer-serv-retail-and-contact-center",
+            "entry-level-technical-support-solution",
+            "essential-focus-8-0",
+            "safety-and-dependability-focus-8-0",
+            "motivation-questionnaire-mqm5",
+            "mq-candidate-motivation-report",
+            "occupational-personality-questionnaire-opq32r",
+            "opq-candidate-plus-report",
+            "opq-emotional-intelligence-report",
+            "opq-leadership-report",
+            "opq-manager-plus-report-2-0",
+            "opq-mq-sales-report",
+            "opq-team-impact-selection-report",
+            "opq-universal-competency-report-2-0",
+            "opq-premium-plus-report-2-0",
+            "salestransformationreport2-0-individualcontributor",
+            "sales-transformation-report-2-0-sales-manager",
+            "smart-interview-live",
+            "smart-interview-on-demand",
+            "virtual-assessment-and-development-centers",
+            # A — Ability / cognitive
+            "verify-deductive-reasoning",
+            "verify-numerical-ability",
+            "verify-inductive-reasoning-2014",
+            "verify-g-ability-test-report",
+            "verify-verbal-ability-next-generation",
+            "verify-working-with-information",
+            "verify-g",
+            "verify-general-ability-screen",
+            "verify-following-instructions",
+            "shl-verify-interactive-g",
+            "verify-interactive-ability-report",
+            "pjm-selection-report",
+            "multitasking-ability",
+            # S — Situational / simulation
+            "automata-sql-new",
+            "automata-new",
+            "automata-data-science-new",
+            "automata-data-science-pro-new",
+            "automata-pro-new",
+            "automata-fix-new",
+            "basic-computer-literacy-windows-10-new",
+            "contact-center-call-simulation-new",
+            "conversational-multichat-simulation",
+            "sales-and-service-phone-simulation",
+            "writex-email-writing-customer-service-new",
+            "writex-email-writing-managerial-new",
+            "data-entry-new",
+            "svar-spoken-english-us-new",
+            "microsoft-word-365-new",
+            # B — Biodata / job-simulation solutions
+            "customer-service-phone-solution",
+            "executive-scenarios",
+            "graduate-scenarios",
+            "management-scenarios",
+            "retail-sales-and-service-simulation",
+            "sales-and-service-phone-solution",
+            "writex-email-writing-sales-new",
+            "managerial-scenarios-candidate-report",
+            # C — Competency
+            "entry-level-cashier-solution",
+            "entry-level-customer-service-general-solution",
+            "entry-level-hotel-front-desk-solution",
+            "entry-level-sales-solution",
+            "global-skills-assessment",
+            "hipo-assessment-report-2-0",
+            "hipo-unlocking-potential-report-2-0",
+            "remoteworkq",
+            "universal-competency-framework-interview-guide",
+            "pjm-development-report",
+            # D — Development / 360
+            "mfs-360-ucf-standard-report",
+            "360-digital-report",
+            "mfs-360-enterprise-leadership-report",
+            # E — Engagement
+            "assessment-and-development-center-exercises",
+        }
+
+        # Split catalog into non-K (always included, curated) and K-type (keyword-matched)
+        all_non_k = [
             item for item in self.catalog
             if _first_type(item.get("test_type", "K")) != "K"
+        ]
+        self._non_k: List[Dict] = [
+            item for item in all_non_k
+            if item["url"].rstrip("/").split("/")[-1].lower() in _CORE_SLUGS
         ]
         self._k_items: List[Dict] = [
             item for item in self.catalog
@@ -56,8 +146,8 @@ class SHLAgent:
         ]
 
         logger.info(
-            "SHLAgent: loaded %d catalog items (%d non-K, %d K-type)",
-            len(self.catalog), len(self._non_k), len(self._k_items),
+            "SHLAgent: loaded %d catalog items (%d core non-K of %d, %d K-type)",
+            len(self.catalog), len(self._non_k), len(all_non_k), len(self._k_items),
         )
 
     # ------------------------------------------------------------------
@@ -131,18 +221,12 @@ class SHLAgent:
 
     @staticmethod
     def _format_candidates(items: List[Dict]) -> str:
-        """
-        Compact line format:  Name | slug | type | RY/RN AY/AN
-        The slug is the last path segment of the URL.  Our _resolve_item()
-        accepts slugs, so the LLM can output either a slug or the full URL.
-        """
+        """Compact line format:  Name | slug | type"""
         lines = []
         for item in items:
             slug = item["url"].rstrip("/").split("/")[-1]
             tt = item.get("test_type", "K")
-            r = "Y" if item.get("remote_support") == "Yes" else "N"
-            a = "Y" if item.get("adaptive_support") == "Yes" else "N"
-            lines.append(f'- {item["name"]} | {slug} | {tt} | R{r}A{a}')
+            lines.append(f'- {item["name"]} | {slug} | {tt}')
         return "\n".join(lines)
 
     def _build_system_prompt(self, candidates: List[Dict], turn_number: int) -> str:
@@ -165,7 +249,7 @@ class SHLAgent:
         return f"""You are an SHL Assessment Recommender for hiring managers.
 
 CATALOG ({len(candidates)} assessments — use ONLY these):
-Format: Name | slug | type | Remote Adaptive
+Format: Name | slug | type
 {catalog_block}
 
 TYPE CODES: A=Ability  B=Biodata  C=Competency  D=Development  E=Engagement  K=Knowledge  P=Personality  S=Situational
@@ -253,7 +337,7 @@ SCHEMA (non-negotiable):
                         messages=groq_msgs,
                         temperature=0.1,
                         max_tokens=1024,
-                        timeout=20.0,
+                        timeout=30.0,
                     )
                     break
                 except RateLimitError:
