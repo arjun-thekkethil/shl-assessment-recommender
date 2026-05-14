@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import re
-import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -330,20 +329,22 @@ SCHEMA (non-negotiable):
             })
 
         try:
+            # Single attempt with 25s timeout — keeps total handler time under
+            # Render's 30s proxy limit. On rate-limit, retry once immediately
+            # (no sleep) since sleeping would push past the 30s wall.
             for attempt in range(2):
                 try:
                     completion = self._client.chat.completions.create(
                         model=GROQ_MODEL,
                         messages=groq_msgs,
                         temperature=0.1,
-                        max_tokens=1024,
-                        timeout=30.0,
+                        max_tokens=900,
+                        timeout=25.0,
                     )
                     break
                 except RateLimitError:
                     if attempt == 0:
-                        logger.warning("Rate limit hit, retrying in 8s…")
-                        time.sleep(8)
+                        logger.warning("Rate limit hit, retrying immediately…")
                     else:
                         raise
             raw = completion.choices[0].message.content.strip()
