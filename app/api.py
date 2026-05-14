@@ -1,4 +1,4 @@
-"""FastAPI service exposing /health and /chat endpoints for the SHL Assessment Recommender."""
+"""FastAPI service exposing /health, /chat, and the chat UI at /."""
 from __future__ import annotations
 
 import logging
@@ -17,7 +17,9 @@ from .agent import SHLAgent
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("shl_api")
 
-app = FastAPI(title="SHL Assessment Recommender")
+_FRONTEND = Path(__file__).parent.parent / "frontend"
+
+app = FastAPI(title="SHL Assessment Recommender", docs_url="/docs", redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,8 +27,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-_FRONTEND = Path(__file__).parent.parent / "frontend"
 
 _agent: SHLAgent | None = None
 
@@ -36,7 +36,7 @@ _agent: SHLAgent | None = None
 # ---------------------------------------------------------------------------
 
 class Message(BaseModel):
-    role: str   # "user" or "assistant"
+    role: str
     content: str
 
 
@@ -66,23 +66,15 @@ def startup() -> None:
     logger.info("Initializing SHLAgent …")
     _agent = SHLAgent()
     logger.info("SHLAgent ready")
-    # Serve frontend static assets (css, js, images if any)
-    if _FRONTEND.exists():
-        app.mount("/static", StaticFiles(directory=str(_FRONTEND)), name="static")
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# API endpoints  (must be declared before the catch-all static mount)
 # ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/")
-def serve_ui():
-    return FileResponse(_FRONTEND / "index.html")
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -94,11 +86,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     result = _agent.chat(messages)
 
     recs = [
-        Recommendation(
-            name=r["name"],
-            url=r["url"],
-            test_type=r["test_type"],
-        )
+        Recommendation(name=r["name"], url=r["url"], test_type=r["test_type"])
         for r in result.get("recommendations", [])
     ]
 
@@ -107,3 +95,16 @@ def chat(req: ChatRequest) -> ChatResponse:
         recommendations=recs,
         end_of_conversation=result.get("end_of_conversation", False),
     )
+
+
+# ---------------------------------------------------------------------------
+# Serve frontend — mount AFTER API routes so /health and /chat take priority
+# ---------------------------------------------------------------------------
+
+@app.get("/")
+def serve_index():
+    return FileResponse(_FRONTEND / "index.html")
+
+
+if _FRONTEND.exists():
+    app.mount("/", StaticFiles(directory=str(_FRONTEND), html=True), name="frontend")
