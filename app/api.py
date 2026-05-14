@@ -263,12 +263,24 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
 
-    # Hard 22s wall-clock budget — ensures we respond before Render's 30s proxy
-    # timeout even if Groq is slow or cancellation cleanup takes time.
+    # asyncio.wait returns immediately at the deadline — unlike wait_for which
+    # blocks until the cancelled task's cleanup finishes (Python 3.11 behaviour).
+    # This guarantees the route handler exits in ≤22s regardless of Groq latency.
+    task = asyncio.ensure_future(_agent.chat(messages))
+    done, pending = await asyncio.wait({task}, timeout=22.0)
+    if pending:
+        for t in pending:
+            t.cancel()
+        logger.warning("Request timed out at API boundary (22s)")
+        return ChatResponse(
+            reply="I'm having trouble processing your request. Please try again.",
+            recommendations=[],
+            end_of_conversation=False,
+        )
     try:
-        result = await asyncio.wait_for(_agent.chat(messages), timeout=22.0)
-    except asyncio.TimeoutError:
-        logger.warning("Request timed out at API boundary")
+        result = task.result()
+    except Exception as exc:
+        logger.error("Agent error: %s", exc)
         return ChatResponse(
             reply="I'm having trouble processing your request. Please try again.",
             recommendations=[],
