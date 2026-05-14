@@ -5,9 +5,9 @@ import logging
 import os
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 from .agent import SHLAgent
@@ -248,8 +248,10 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/", response_class=HTMLResponse)
-def serve_ui():
+@app.api_route("/", methods=["GET", "HEAD"])
+def serve_ui(request: Request):
+    if request.method == "HEAD":
+        return Response(headers={"content-type": "text/html; charset=utf-8"})
     return HTMLResponse(content=_UI)
 
 
