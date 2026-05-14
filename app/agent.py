@@ -47,17 +47,13 @@ class SHLAgent:
         # Core non-K slugs: one representative per assessment family to keep
         # prompt under ~2,000 tokens (Groq free tier: 6,000 TPM).
         _CORE_SLUGS: set = {
-            # P — Personality / motivational
+            # P — Personality / motivational (one rep per family)
             "ai-skills",
             "dependability-and-safety-instrument-dsi",
-            "digital-readiness-development-report",
             "enterprise-leadership-report-2-0",
             "entry-level-customer-serv-retail-and-contact-center",
-            "entry-level-technical-support-solution",
             "essential-focus-8-0",
-            "safety-and-dependability-focus-8-0",
             "motivation-questionnaire-mqm5",
-            "mq-candidate-motivation-report",
             "occupational-personality-questionnaire-opq32r",
             "opq-candidate-plus-report",
             "opq-emotional-intelligence-report",
@@ -66,12 +62,9 @@ class SHLAgent:
             "opq-mq-sales-report",
             "opq-team-impact-selection-report",
             "opq-universal-competency-report-2-0",
-            "opq-premium-plus-report-2-0",
             "salestransformationreport2-0-individualcontributor",
             "sales-transformation-report-2-0-sales-manager",
             "smart-interview-live",
-            "smart-interview-on-demand",
-            "virtual-assessment-and-development-centers",
             # A — Ability / cognitive
             "verify-deductive-reasoning",
             "verify-numerical-ability",
@@ -80,11 +73,6 @@ class SHLAgent:
             "verify-verbal-ability-next-generation",
             "verify-working-with-information",
             "verify-g",
-            "verify-general-ability-screen",
-            "verify-following-instructions",
-            "shl-verify-interactive-g",
-            "verify-interactive-ability-report",
-            "pjm-selection-report",
             "multitasking-ability",
             # S — Situational / simulation
             "automata-sql-new",
@@ -92,16 +80,12 @@ class SHLAgent:
             "automata-data-science-new",
             "automata-data-science-pro-new",
             "automata-pro-new",
-            "automata-fix-new",
             "basic-computer-literacy-windows-10-new",
             "contact-center-call-simulation-new",
-            "conversational-multichat-simulation",
             "sales-and-service-phone-simulation",
             "writex-email-writing-customer-service-new",
             "writex-email-writing-managerial-new",
             "data-entry-new",
-            "svar-spoken-english-us-new",
-            "microsoft-word-365-new",
             # B — Biodata / job-simulation solutions
             "customer-service-phone-solution",
             "executive-scenarios",
@@ -110,7 +94,6 @@ class SHLAgent:
             "retail-sales-and-service-simulation",
             "sales-and-service-phone-solution",
             "writex-email-writing-sales-new",
-            "managerial-scenarios-candidate-report",
             # C — Competency
             "entry-level-cashier-solution",
             "entry-level-customer-service-general-solution",
@@ -121,11 +104,9 @@ class SHLAgent:
             "hipo-unlocking-potential-report-2-0",
             "remoteworkq",
             "universal-competency-framework-interview-guide",
-            "pjm-development-report",
             # D — Development / 360
             "mfs-360-ucf-standard-report",
             "360-digital-report",
-            "mfs-360-enterprise-leadership-report",
             # E — Engagement
             "assessment-and-development-center-exercises",
         }
@@ -338,7 +319,7 @@ SCHEMA (non-negotiable):
                         model=GROQ_MODEL,
                         messages=groq_msgs,
                         temperature=0.1,
-                        max_tokens=750,
+                        max_tokens=600,
                         timeout=25.0,
                     )
                     break
