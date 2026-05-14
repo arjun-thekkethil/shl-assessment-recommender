@@ -1,6 +1,7 @@
 """Groq-powered conversational SHL assessment recommender agent."""
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
 import os
@@ -30,6 +31,7 @@ class SHLAgent:
             raise RuntimeError("GROQ_API_KEY environment variable is required")
 
         self._client = Groq(api_key=api_key)
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
 
         with open(CATALOG_PATH) as fh:
             self.catalog: List[Dict] = json.load(fh)
@@ -309,26 +311,26 @@ SCHEMA (non-negotiable):
                 "content": m["content"],
             })
 
+        # Use a thread + future so we get a true wall-clock timeout.
+        # Groq may send HTTP keep-alive during server-side queuing which
+        # prevents the SDK's per-read timeout from firing; future.result()
+        # enforces a hard wall limit regardless.
+        def _call_groq():
+            return self._client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=groq_msgs,
+                temperature=0.1,
+                max_tokens=600,
+                timeout=None,
+            )
+
+        future = self._executor.submit(_call_groq)
         try:
-            # Single attempt with 25s timeout — keeps total handler time under
-            # Render's 30s proxy limit. On rate-limit, retry once immediately
-            # (no sleep) since sleeping would push past the 30s wall.
-            for attempt in range(2):
-                try:
-                    completion = self._client.chat.completions.create(
-                        model=GROQ_MODEL,
-                        messages=groq_msgs,
-                        temperature=0.1,
-                        max_tokens=600,
-                        timeout=25.0,
-                    )
-                    break
-                except RateLimitError:
-                    if attempt == 0:
-                        logger.warning("Rate limit hit, retrying immediately…")
-                    else:
-                        raise
+            completion = future.result(timeout=24.0)
             raw = completion.choices[0].message.content.strip()
+        except concurrent.futures.TimeoutError:
+            logger.warning("Groq call exceeded 24s wall limit")
+            return self._error_response()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
             return self._error_response()
